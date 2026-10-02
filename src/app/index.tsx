@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,12 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 // --- Definición de Tipos e Interfaces ---
 type UserRole = 'Admin Plataforma' | 'Admin Institución' | 'Especialista' | 'Auditor';
@@ -27,27 +32,119 @@ interface SystemMetrics {
 
 interface RecentSession {
   id: string;
-  pacienteCodigo: string; // Código anónimo según Ley 21.719
+  pacienteCodigo: string;
   nivel: DifficultyLevel;
-  scene_config_id: string; // Identificador de versión del escenario
+  scene_config_id: string;
   duracion: string;
   estado: 'Completado' | 'Sincronizado Offline' | 'En proceso';
   fecha: string;
   latencia: string;
 }
 
+interface TabItem {
+  key: TabType;
+  label: string;
+  iconActive: keyof typeof Ionicons.glyphMap;
+  iconInactive: keyof typeof Ionicons.glyphMap;
+}
+
 export default function DashboardScreen() {
   const [activeRole, setActiveRole] = useState<UserRole>('Admin Plataforma');
   const [activeTab, setActiveTab] = useState<TabType>('Métricas');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [userEmail, setUserEmail] = useState('');
 
-  // Datos simulados alineados con los requerimientos de NeuroFlex VR
+  // Estados para Modal de IA
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
+
+  // 1. Verificar si existe sesión guardada
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const session = await AsyncStorage.getItem('user_session');
+      if (!session) {
+        router.replace('/login');
+      } else {
+        const parsed = JSON.parse(session);
+        setUserEmail(parsed.email);
+      }
+    } catch (e) {
+      router.replace('/login');
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  // 2. Función para cerrar sesión
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('user_session');
+    router.replace('/login');
+  };
+
+  // Desglose de IA basado en el rol actual
+  const getAiSummary = () => {
+    switch (activeRole) {
+      case 'Admin Plataforma':
+        return {
+          title: 'Desglose Ejecutivo de Infraestructura',
+          metrics: [
+            '• Rendimiento SLA (99.92%): Sobre el umbral crítico del 99.9%. Cero interrupciones en la última semana.',
+            '• Latencia P95 (380 ms): Operación fluida en sa-east-1. Dentro del límite operativo aceptable (< 500 ms).',
+            '• Carga de Dispositivos: 842 visores Meta Quest 3 sincronizados y distribuidos en 265 especialistas activos.',
+            '• Estado de Cumplimiento: Cifrado AWS KMS al 100%, conforme con los requerimientos de la Ley 21.719.',
+          ],
+          insight: 'Sugerencia IA: El tráfico actual se mantiene óptimo. Se recomienda monitorear latencia si el número de visores supera los 1,000 activos en simultáneo.',
+        };
+      case 'Admin Institución':
+        return {
+          title: 'Desglose Institucional',
+          metrics: [
+            '• Disponibilidad de Red local: 99.85% de estabilidad durante sesiones concurrentes.',
+            '• Dispositivos Asignados: 45 Visores Meta Quest 3 operativos en sede.',
+            '• Sesiones Activas: 18 Especialistas conduciendo pruebas en tiempo real.',
+          ],
+          insight: 'Sugerencia IA: Programar ventana de mantenimiento preventivo para actualizar firmwares pendientes en visores de baja actividad.',
+        };
+      case 'Especialista':
+        return {
+          title: 'Desglose de Sesiones y Pacientes',
+          metrics: [
+            '• Estado de Conexión: Latencia baja (380 ms), ideal para biometría en tiempo real.',
+            '• Monitoreo Cognitivo: 12 Pacientes evaluados en el turno actual sin anomalías.',
+          ],
+          insight: 'Sugerencia IA: Los patrones neuro-flexibles indican un rendimiento óptimo en las pruebas matutinas.',
+        };
+      case 'Auditor':
+        return {
+          title: 'Desglose de Auditoría y Cumplimiento',
+          metrics: [
+            '• Trazabilidad de Logs: 100% de los accesos a fichas clínicas registrados con hash inmutable.',
+            '• Cifrado de Datos: Llaves KMS rotadas correctamente en el último período.',
+          ],
+          insight: 'Sugerencia IA: Sin desvíos detectados respecto al marco legal de protección de datos de salud.',
+        };
+    }
+  };
+
+  const handleOpenAI = () => {
+    setLoadingAI(true);
+    setAiModalVisible(true);
+    setTimeout(() => {
+      setLoadingAI(false);
+    }, 600);
+  };
+
   const systemMetrics: SystemMetrics = {
     instituciones: 50,
-    visoresSimultaneos: 842, // SLA: Soporte para 1.000 visores
-    profesionalesSimultaneos: 265, // SLA: Soporte para 300 profesionales
-    latenciaP95: '380 ms', // Requisito: < 500 ms en el 95% de los casos
-    disponibilidad: '99.92%', // Requisito: >= 99.9%
-    costoPorSesion: '$0.0094 USD', // Límite: hasta $0.02 USD por sesión
+    visoresSimultaneos: 842,
+    profesionalesSimultaneos: 265,
+    latenciaP95: '380 ms',
+    disponibilidad: '99.92%',
+    costoPorSesion: '$0.0094 USD',
     regionActiva: 'sa-east-1 (São Paulo)',
     cumplimientoLey21719: '100% Cifrado KMS',
   };
@@ -57,6 +154,27 @@ export default function DashboardScreen() {
     'Admin Institución',
     'Especialista',
     'Auditor',
+  ];
+
+  const tabItems: TabItem[] = [
+    {
+      key: 'Métricas',
+      label: 'Métricas',
+      iconActive: 'stats-chart',
+      iconInactive: 'stats-chart-outline',
+    },
+    {
+      key: 'Sesiones VR',
+      label: 'Sesiones VR',
+      iconActive: 'headset',
+      iconInactive: 'headset-outline',
+    },
+    {
+      key: 'Costos y Nube',
+      label: 'Costos/Nube',
+      iconActive: 'cloudy',
+      iconInactive: 'cloudy-outline',
+    },
   ];
 
   const recentSessions: RecentSession[] = [
@@ -92,17 +210,43 @@ export default function DashboardScreen() {
     },
   ];
 
+  const currentSummary = getAiSummary();
+
+  if (isCheckingAuth) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#38BDF8" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1A202C" />
 
-      {/* Encabezado */}
+      {/* Encabezado Superior con Botón IA y Logout */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>NeuroFlex VR</Text>
-        <Text style={styles.headerSubtitle}>Plataforma SaaS de Estimulación Cognitiva</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>NeuroFlex VR</Text>
+          <Text style={styles.headerSubtitle}>{userEmail || 'Plataforma SaaS'}</Text>
+        </View>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.aiButton}
+            onPress={handleOpenAI}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.aiButtonText}>IA</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Selector de Rol de Usuario */}
+      {/* Selector de Rol */}
       <View style={styles.roleContainer}>
         <Text style={styles.sectionLabel}>Rol Activo:</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -128,23 +272,8 @@ export default function DashboardScreen() {
         </ScrollView>
       </View>
 
-      {/* Pestañas de Navegación */}
-      <View style={styles.tabContainer}>
-        {(['Métricas', 'Sesiones VR', 'Costos y Nube'] as TabType[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Contenido Dinámico */}
-      <ScrollView style={styles.content}>
+      {/* Área Principal de Contenido Scrollable */}
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollPadding}>
         {activeTab === 'Métricas' && (
           <View style={styles.tabContent}>
             <Text style={styles.cardHeaderTitle}>Rendimiento Global y SLA</Text>
@@ -230,16 +359,89 @@ export default function DashboardScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Navbar Inferior */}
+      <View style={styles.bottomNav}>
+        {tabItems.map((item) => {
+          const isActive = activeTab === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              style={styles.navItem}
+              onPress={() => setActiveTab(item.key)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isActive ? item.iconActive : item.iconInactive}
+                size={22}
+                color={isActive ? '#38BDF8' : '#64748B'}
+              />
+              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Modal Desplegable de IA */}
+      <Modal
+        visible={aiModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAiModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Desglose IA - {activeRole}</Text>
+              <TouchableOpacity onPress={() => setAiModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingAI ? (
+              <View style={styles.modalLoadingContainer}>
+                <ActivityIndicator size="large" color="#38BDF8" />
+                <Text style={styles.modalLoadingText}>Procesando métricas del dashboard...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.modalBody}>
+                <Text style={styles.summaryTitle}>{currentSummary.title}</Text>
+                
+                <View style={styles.metricsBox}>
+                  {currentSummary.metrics.map((item, idx) => (
+                    <Text key={idx} style={styles.metricItem}>{item}</Text>
+                  ))}
+                </View>
+
+                <View style={styles.insightBox}>
+                  <Ionicons name="bulb-outline" size={18} color="#38BDF8" style={{ marginRight: 8 }} />
+                  <Text style={styles.insightText}>{currentSummary.insight}</Text>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: '#1E293B',
     borderBottomWidth: 1,
@@ -255,10 +457,37 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  aiButton: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiButtonText: {
+    color: '#38BDF8',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#334155',
+  },
   roleContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: '#1E293B',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
   },
   sectionLabel: {
     fontSize: 12,
@@ -285,35 +514,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#0F172A',
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  tabButtonActive: {
-    borderBottomWidth: 3,
-    borderBottomColor: '#38BDF8',
-  },
-  tabText: {
-    color: '#64748B',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: '#38BDF8',
-  },
   content: {
     flex: 1,
     padding: 16,
   },
+  scrollPadding: {
+    paddingBottom: 20,
+  },
   tabContent: {
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   cardHeaderTitle: {
     fontSize: 16,
@@ -440,5 +649,102 @@ const styles = StyleSheet.create({
   costDescription: {
     fontSize: 12,
     color: '#64748B',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: '#1E293B',
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    paddingVertical: 8,
+    paddingBottom: 12,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  navLabelActive: {
+    color: '#38BDF8',
+    fontWeight: 'bold',
+  },
+
+  /* Modal IA Styles */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalLoadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalLoadingText: {
+    color: '#94A3B8',
+    fontSize: 14,
+  },
+  modalBody: {
+    marginTop: 4,
+  },
+  summaryTitle: {
+    color: '#38BDF8',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  metricsBox: {
+    backgroundColor: '#0F172A',
+    padding: 14,
+    borderRadius: 10,
+    gap: 10,
+    marginBottom: 16,
+  },
+  metricItem: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  insightBox: {
+    flexDirection: 'row',
+    backgroundColor: '#0369A120',
+    borderWidth: 1,
+    borderColor: '#0284C7',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  insightText: {
+    color: '#E0F2FE',
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
   },
 });
