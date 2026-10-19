@@ -1,23 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  ActivityIndicator,
-  Modal,
-} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSessions } from '../hooks/useSessions';
 
 // --- Definición de Tipos e Interfaces ---
 type UserRole = 'Admin Plataforma' | 'Admin Institución' | 'Especialista' | 'Auditor';
 type TabType = 'Métricas' | 'Sesiones VR' | 'Costos y Nube';
-type DifficultyLevel = 'Fácil' | 'Difícil';
 
 interface SystemMetrics {
   instituciones: number;
@@ -28,17 +29,6 @@ interface SystemMetrics {
   costoPorSesion: string;
   regionActiva: string;
   cumplimientoLey21719: string;
-}
-
-interface RecentSession {
-  id: string;
-  pacienteCodigo: string;
-  nivel: DifficultyLevel;
-  scene_config_id: string;
-  duracion: string;
-  estado: 'Completado' | 'Sincronizado Offline' | 'En proceso';
-  fecha: string;
-  latencia: string;
 }
 
 interface TabItem {
@@ -53,6 +43,10 @@ export default function DashboardScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('Métricas');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userEmail, setUserEmail] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Hook real de sesiones AWS
+  const { sessions, loading: sessionsLoading, error: sessionsError, refetch } = useSessions('P001');
 
   // Estados para Modal de IA
   const [aiModalVisible, setAiModalVisible] = useState(false);
@@ -83,6 +77,14 @@ export default function DashboardScreen() {
   const handleLogout = async () => {
     await AsyncStorage.removeItem('user_session');
     router.replace('/login');
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (refetch) {
+      await refetch();
+    }
+    setRefreshing(false);
   };
 
   // Desglose de IA basado en el rol actual
@@ -177,39 +179,6 @@ export default function DashboardScreen() {
     },
   ];
 
-  const recentSessions: RecentSession[] = [
-    {
-      id: 'SES-9081',
-      pacienteCodigo: 'PAC-8842',
-      nivel: 'Fácil',
-      scene_config_id: 'SCENE_EASY_V1.2',
-      duracion: '12 min',
-      estado: 'Completado',
-      fecha: '2026-10-01 14:30',
-      latencia: '320 ms',
-    },
-    {
-      id: 'SES-9082',
-      pacienteCodigo: 'PAC-3109',
-      nivel: 'Difícil',
-      scene_config_id: 'SCENE_HARD_V1.0',
-      duracion: '18 min',
-      estado: 'Completado',
-      fecha: '2026-10-01 14:45',
-      latencia: '410 ms',
-    },
-    {
-      id: 'SES-9083',
-      pacienteCodigo: 'PAC-6521',
-      nivel: 'Fácil',
-      scene_config_id: 'SCENE_EASY_V1.2',
-      duracion: '10 min',
-      estado: 'Sincronizado Offline',
-      fecha: '2026-10-01 15:10',
-      latencia: '290 ms',
-    },
-  ];
-
   const currentSummary = getAiSummary();
 
   if (isCheckingAuth) {
@@ -273,7 +242,15 @@ export default function DashboardScreen() {
       </View>
 
       {/* Área Principal de Contenido Scrollable */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollPadding}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollPadding}
+        refreshControl={
+          activeTab === 'Sesiones VR' ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38BDF8" />
+          ) : undefined
+        }
+      >
         {activeTab === 'Métricas' && (
           <View style={styles.tabContent}>
             <Text style={styles.cardHeaderTitle}>Rendimiento Global y SLA</Text>
@@ -308,30 +285,60 @@ export default function DashboardScreen() {
 
         {activeTab === 'Sesiones VR' && (
           <View style={styles.tabContent}>
-            <Text style={styles.cardHeaderTitle}>Registro de Sesiones (Visor Quest 3)</Text>
-            {recentSessions.map((session) => (
-              <View key={session.id} style={styles.sessionCard}>
-                <View style={styles.sessionHeader}>
-                  <Text style={styles.sessionCode}>{session.pacienteCodigo}</Text>
-                  <Text
-                    style={[
-                      styles.badge,
-                      session.nivel === 'Fácil' ? styles.badgeEasy : styles.badgeHard,
-                    ]}
-                  >
-                    Nivel {session.nivel}
-                  </Text>
-                </View>
-                <Text style={styles.sessionSubText}>ID Versión: {session.scene_config_id}</Text>
-                <Text style={styles.sessionSubText}>
-                  Duración: {session.duracion} | Latencia: {session.latencia}
-                </Text>
-                <View style={styles.sessionFooter}>
-                  <Text style={styles.sessionStatus}>Estado: {session.estado}</Text>
-                  <Text style={styles.sessionDate}>{session.fecha}</Text>
-                </View>
+            <Text style={styles.cardHeaderTitle}>
+              Registro de Sesiones (AWS DynamoDB - P001) ({sessions.length})
+            </Text>
+
+            {sessionsLoading && !refreshing ? (
+              <View style={styles.centerContent}>
+                <ActivityIndicator size="large" color="#38BDF8" />
+                <Text style={styles.loadingText}>Consultando telemetría en caliente...</Text>
               </View>
-            ))}
+            ) : sessionsError && !refreshing ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorTitle}>Error de Conexión con la API</Text>
+                <Text style={styles.errorText}>{sessionsError}</Text>
+              </View>
+            ) : sessions.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>Sin registros activos en DynamoDB</Text>
+                <Text style={styles.emptySubtitle}>
+                  Inyecta una sesión desde PowerShell para validar la ingesta SQS/Worker.
+                </Text>
+              </View>
+            ) : (
+              sessions.map((item: any) => {
+                const isHard = item.scene_config_id?.includes('HARD');
+                return (
+                  <View key={item.session_id} style={styles.sessionCard}>
+                    <View style={styles.sessionHeader}>
+                      <Text style={styles.sessionCode}>{item.session_id}</Text>
+                      <Text
+                        style={[
+                          styles.badge,
+                          isHard ? styles.badgeHard : styles.badgeEasy,
+                        ]}
+                      >
+                        {item.scene_config_id || 'Nivel Base'}
+                      </Text>
+                    </View>
+                    <Text style={styles.sessionSubText}>Experiencia: {item.experiencia || 'N/A'}</Text>
+                    <Text style={styles.sessionSubText}>Duración: {item.duracion_seg ?? 0} segundos</Text>
+                    
+                    {item.metricas?.score !== undefined && (
+                      <Text style={styles.scoreText}>
+                        Puntaje Cognitivo: {item.metricas.score} pts
+                      </Text>
+                    )}
+
+                    <View style={styles.sessionFooter}>
+                      <Text style={styles.sessionStatus}>Participante: {item.participante_id}</Text>
+                      {item.tenant_id && <Text style={styles.sessionDate}>Tenant: {item.tenant_id}</Text>}
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
         )}
 
@@ -434,6 +441,58 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  centerContent: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#94A3B8',
+    marginTop: 10,
+    fontSize: 13,
+  },
+  errorBox: {
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  errorTitle: {
+    color: '#F87171',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  errorText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  emptyCard: {
+    backgroundColor: '#1E293B',
+    padding: 24,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  emptyTitle: {
+    color: '#94A3B8',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  emptySubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  scoreText: {
+    color: '#4ADE80',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   container: {
     flex: 1,
