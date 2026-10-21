@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import Svg, { Circle, Rect, Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
+
+const COGNITO_REGION = 'us-east-1';
+const COGNITO_CLIENT_ID = '1eto1qkukfh681a7v9bic56mka';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('especialista@haba.test');
+  const [password, setPassword] = useState('NeuroFlex2026!');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -28,21 +31,51 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Simulación de autenticación (Aquí luego conectarás AWS Cognito)
+      const response = await fetch(`https://cognito-idp.${COGNITO_REGION}.amazonaws.com/`, {
+        method: 'POST',
+        headers: {
+          'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+          'Content-Type': 'application/x-amz-json-1.1',
+        },
+        body: JSON.stringify({
+          AuthFlow: 'USER_PASSWORD_AUTH',
+          ClientId: COGNITO_CLIENT_ID,
+          AuthParameters: {
+            USERNAME: email.trim(),
+            PASSWORD: password,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = data.message || 'Credenciales incorrectas.';
+        Alert.alert('Error de Autenticación', errorMsg);
+        return;
+      }
+
+      // Usar IdToken (requerido por API Gateway Cognito Authorizer por defecto)
+      const idToken = data.AuthenticationResult?.IdToken;
+// Forzar estrictamente el uso del Access Token
+      const accessToken = data.AuthenticationResult?.AccessToken;
+
+      if (!accessToken) {
+        Alert.alert('Error', 'No se obtuvo un Access Token válido de Cognito.');
+        return;
+      }
+
       const userSession = {
         email: email.trim(),
-        role: 'Admin Plataforma',
-        token: 'local-token-neuroflex-' + Date.now(),
+        role: 'Especialista',
+        token: accessToken, // <-- Se envía el token correcto a la API
         isLoggedIn: true,
       };
 
-      // Guardar sesión en el almacenamiento local
       await AsyncStorage.setItem('user_session', JSON.stringify(userSession));
-
-      // Redirigir al Dashboard principal
       router.replace('/');
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar la sesión local');
+    } catch (error: any) {
+      Alert.alert('Error de Conexión', error.message || 'No se pudo conectar con Cognito');
     } finally {
       setLoading(false);
     }
@@ -53,10 +86,8 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
       <View style={styles.content}>
-        {/* Logo / Encabezado */}
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            {/* Logo Vectorial SVG */}
             <Svg viewBox="0 0 120 120" width={70} height={70}>
               <Circle cx="60" cy="60" r="56" fill="#1E293B" stroke="#38BDF8" strokeWidth="2" />
               <Rect x="25" y="45" width="70" height="30" rx="12" fill="#0F172A" stroke="#38BDF8" strokeWidth="4" />
@@ -69,12 +100,11 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Acceso al Panel SaaS Institucional</Text>
         </View>
 
-        {/* Formulario de Inicio de Sesión */}
         <View style={styles.form}>
           <Text style={styles.label}>Correo Electrónico</Text>
           <TextInput
             style={styles.input}
-            placeholder="admin@neuroflex.cl"
+            placeholder="especialista@haba.test"
             placeholderTextColor="#64748B"
             value={email}
             onChangeText={setEmail}
@@ -92,94 +122,25 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>Iniciar Sesión</Text>
-            )}
+          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Iniciar Sesión</Text>}
           </TouchableOpacity>
         </View>
-
-
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#38BDF8',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#94A3B8',
-    marginTop: 4,
-  },
-  form: {
-    backgroundColor: '#1E293B',
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  label: {
-    fontSize: 12,
-    color: '#CBD5E1',
-    fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: '#0F172A',
-    color: '#F8FAFC',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-    fontSize: 14,
-  },
-  button: {
-    backgroundColor: '#0284C7',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  footerNote: {
-    textAlign: 'center',
-    color: '#64748B',
-    fontSize: 11,
-    marginTop: 24,
-  },
+  container: { flex: 1, backgroundColor: '#0F172A' },
+  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  iconContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#38BDF8' },
+  subtitle: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
+  form: { backgroundColor: '#1E293B', padding: 20, borderRadius: 12, borderWidth: 1, borderColor: '#334155' },
+  label: { fontSize: 12, color: '#CBD5E1', fontWeight: '600', marginBottom: 6, marginTop: 10 },
+  input: { backgroundColor: '#0F172A', color: '#F8FAFC', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#334155', fontSize: 14 },
+  button: { backgroundColor: '#0284C7', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 20 },
+  buttonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
 });

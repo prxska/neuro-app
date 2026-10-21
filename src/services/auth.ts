@@ -1,15 +1,13 @@
-import { AWS_CONFIG } from '../constants/config';
-
 export async function loginCognito(username: string, password: string): Promise<string> {
-  const response = await fetch(AWS_CONFIG.COGNITO_URL, {
+  const response = await fetch('https://cognito-idp.us-east-1.amazonaws.com/', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-amz-json-1.1',
       'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+      'Content-Type': 'application/x-amz-json-1.1',
     },
     body: JSON.stringify({
-      ClientId: AWS_CONFIG.COGNITO_CLIENT_ID,
       AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: '1eto1qkukfh681a7v9bic56mka',
       AuthParameters: {
         USERNAME: username,
         PASSWORD: password,
@@ -19,7 +17,7 @@ export async function loginCognito(username: string, password: string): Promise<
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'Error autenticando en Cognito');
+    throw new Error(data.message || 'Credenciales inválidas');
   }
 
   return data.AuthenticationResult.AccessToken;

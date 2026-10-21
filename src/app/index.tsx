@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useSessions } from '../hooks/useSessions';
 
-// --- Definición de Tipos e Interfaces ---
 type UserRole = 'Admin Plataforma' | 'Admin Institución' | 'Especialista' | 'Auditor';
 type TabType = 'Métricas' | 'Sesiones VR' | 'Costos y Nube';
 
@@ -45,14 +44,11 @@ export default function DashboardScreen() {
   const [userEmail, setUserEmail] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Hook real de sesiones AWS
   const { sessions, loading: sessionsLoading, error: sessionsError, refetch } = useSessions('P001');
 
-  // Estados para Modal de IA
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
 
-  // 1. Verificar si existe sesión guardada
   useEffect(() => {
     checkSession();
   }, []);
@@ -64,7 +60,7 @@ export default function DashboardScreen() {
         router.replace('/login');
       } else {
         const parsed = JSON.parse(session);
-        setUserEmail(parsed.email);
+        setUserEmail(parsed.email || '');
       }
     } catch (e) {
       router.replace('/login');
@@ -73,7 +69,6 @@ export default function DashboardScreen() {
     }
   };
 
-  // 2. Función para cerrar sesión
   const handleLogout = async () => {
     await AsyncStorage.removeItem('user_session');
     router.replace('/login');
@@ -87,7 +82,6 @@ export default function DashboardScreen() {
     setRefreshing(false);
   };
 
-  // Desglose de IA basado en el rol actual
   const getAiSummary = () => {
     switch (activeRole) {
       case 'Admin Plataforma':
@@ -191,9 +185,9 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A202C" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
-      {/* Encabezado Superior con Botón IA y Logout */}
+      {/* Encabezado Superior */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>NeuroFlex VR</Text>
@@ -241,7 +235,7 @@ export default function DashboardScreen() {
         </ScrollView>
       </View>
 
-      {/* Área Principal de Contenido Scrollable */}
+      {/* Contenido Principal */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollPadding}
@@ -258,18 +252,18 @@ export default function DashboardScreen() {
             <View style={styles.grid}>
               <View style={styles.card}>
                 <Text style={styles.cardValue}>{systemMetrics.disponibilidad}</Text>
-                <Text style={styles.cardLabel}>Disponibilidad (SLA &ge; 99.9%)</Text>
+                <Text style={styles.cardLabel}>Disponibilidad (SLA ≥ 99.9%)</Text>
               </View>
               <View style={styles.card}>
                 <Text style={styles.cardValue}>{systemMetrics.latenciaP95}</Text>
                 <Text style={styles.cardLabel}>Latencia P95 (&lt; 500 ms)</Text>
               </View>
               <View style={styles.card}>
-                <Text style={styles.cardValue}>{systemMetrics.visoresSimultaneos}</Text>
+                <Text style={styles.cardValue}>{String(systemMetrics.visoresSimultaneos)}</Text>
                 <Text style={styles.cardLabel}>Visores Meta Quest 3</Text>
               </View>
               <View style={styles.card}>
-                <Text style={styles.cardValue}>{systemMetrics.profesionalesSimultaneos}</Text>
+                <Text style={styles.cardValue}>{String(systemMetrics.profesionalesSimultaneos)}</Text>
                 <Text style={styles.cardLabel}>Especialistas Conectados</Text>
               </View>
             </View>
@@ -308,7 +302,7 @@ export default function DashboardScreen() {
               </View>
             ) : (
               sessions.map((item: any) => {
-                const isHard = item.scene_config_id?.includes('HARD');
+                const isHard = Boolean(item.scene_config_id?.includes('HARD'));
                 return (
                   <View key={item.session_id} style={styles.sessionCard}>
                     <View style={styles.sessionHeader}>
@@ -324,7 +318,7 @@ export default function DashboardScreen() {
                     </View>
                     <Text style={styles.sessionSubText}>Experiencia: {item.experiencia || 'N/A'}</Text>
                     <Text style={styles.sessionSubText}>Duración: {item.duracion_seg ?? 0} segundos</Text>
-                    
+
                     {item.metricas?.score !== undefined && (
                       <Text style={styles.scoreText}>
                         Puntaje Cognitivo: {item.metricas.score} pts
@@ -333,7 +327,9 @@ export default function DashboardScreen() {
 
                     <View style={styles.sessionFooter}>
                       <Text style={styles.sessionStatus}>Participante: {item.participante_id}</Text>
-                      {item.tenant_id && <Text style={styles.sessionDate}>Tenant: {item.tenant_id}</Text>}
+                      {Boolean(item.tenant_id) && (
+                        <Text style={styles.sessionDate}>Tenant: {item.tenant_id}</Text>
+                      )}
                     </View>
                   </View>
                 );
@@ -415,7 +411,7 @@ export default function DashboardScreen() {
             ) : (
               <ScrollView style={styles.modalBody}>
                 <Text style={styles.summaryTitle}>{currentSummary.title}</Text>
-                
+
                 <View style={styles.metricsBox}>
                   {currentSummary.metrics.map((item, idx) => (
                     <Text key={idx} style={styles.metricItem}>{item}</Text>
@@ -732,8 +728,6 @@ const styles = StyleSheet.create({
     color: '#38BDF8',
     fontWeight: 'bold',
   },
-
-  /* Modal IA Styles */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
