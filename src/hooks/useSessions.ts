@@ -28,7 +28,8 @@ export function useSessions(participanteId: string) {
 
       const { token } = JSON.parse(storedSession);
       
-      const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participanteId}`, {
+      // AQUÍ ESTÁ EL CAMBIO: agregamos &tenantId=habaA a la URL
+      const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participanteId}&tenantId=habaA`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
