@@ -3,19 +3,18 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 const COGNITO_REGION = 'us-east-1';
-const COGNITO_CLIENT_ID = '1eto1qkukfh681a7v9bic56mka';
+const COGNITO_CLIENT_ID = '6m7qlsodcm83ddcb3jcnp0hql6'; 
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('especialista@haba.test');
@@ -24,11 +23,12 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Por favor ingresa tu correo y contraseña');
+      window.alert('Por favor ingresa tu correo y contraseña');
       return;
     }
 
     setLoading(true);
+    console.log("1. Iniciando login para:", email);
 
     try {
       const response = await fetch(`https://cognito-idp.${COGNITO_REGION}.amazonaws.com/`, {
@@ -50,32 +50,30 @@ export default function LoginScreen() {
       const data = await response.json();
 
       if (!response.ok) {
-        const errorMsg = data.message || 'Credenciales incorrectas.';
-        Alert.alert('Error de Autenticación', errorMsg);
+        window.alert('Error de Autenticación: ' + (data.message || 'Credenciales incorrectas.'));
         return;
       }
 
-      // Usar IdToken (requerido por API Gateway Cognito Authorizer por defecto)
-      const idToken = data.AuthenticationResult?.IdToken;
-// Forzar estrictamente el uso del Access Token
+      // VOLVEMOS AL ACCESS TOKEN
       const accessToken = data.AuthenticationResult?.AccessToken;
 
       if (!accessToken) {
-        Alert.alert('Error', 'No se obtuvo un Access Token válido de Cognito.');
+        window.alert('Error: No se obtuvo un Access Token válido de Cognito.');
         return;
       }
 
       const userSession = {
         email: email.trim(),
         role: 'Especialista',
-        token: accessToken, // <-- Se envía el token correcto a la API
+        token: accessToken, // <--- GUARDAMOS EL ACCESS TOKEN
         isLoggedIn: true,
       };
 
       await AsyncStorage.setItem('user_session', JSON.stringify(userSession));
       router.replace('/');
     } catch (error: any) {
-      Alert.alert('Error de Conexión', error.message || 'No se pudo conectar con Cognito');
+      console.error("ERROR CRÍTICO:", error);
+      window.alert('Error de Conexión: ' + error.message);
     } finally {
       setLoading(false);
     }
