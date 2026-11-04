@@ -7,11 +7,11 @@ export interface SessionData {
   experiencia: string;
   scene_config_id: string;
   duracion_seg: number;
+  timestamp?: string; // <--- NUEVO CAMPO
   metricas: any;
 }
 
 const API_BASE_URL = 'https://4gesdz7435.execute-api.us-east-1.amazonaws.com/v1';
-
 
 export function useSessions(participanteId: string) {
   const [sessions, setSessions] = useState<SessionData[]>([]);
@@ -29,7 +29,6 @@ export function useSessions(participanteId: string) {
 
       const { token } = JSON.parse(storedSession);
       
-      // AQUÍ ESTÁ EL CAMBIO: agregamos &tenantId=habaA a la URL
       const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participanteId}&tenantId=habaA`, {
         method: 'GET',
         headers: {
@@ -58,6 +57,7 @@ export function useSessions(participanteId: string) {
             experiencia: 'Unity VR (Scenes v1)',
             scene_config_id: 'Evaluación Multiescena',
             duracion_seg: 0,
+            timestamp: round.timestamp || new Date().toISOString(), // <--- GUARDAMOS LA FECHA
             metricas: { score: 0, detalle_escenas: [] }
           };
         }
@@ -67,6 +67,7 @@ export function useSessions(participanteId: string) {
         sessionsMap[sId].metricas.detalle_escenas.push({
           escena: round.scenarioId,
           estado: round.status,
+          resumen_ia: round.resumen_ia, // <--- GUARDAMOS EL RESUMEN DE LA IA
           ...m
         });
         
@@ -100,8 +101,12 @@ export function useSessions(participanteId: string) {
         return session;
       });
 
-      // Ordenamos por sessionId (opcional, para que salgan en orden)
-      finalSessions.sort((a, b) => b.session_id.localeCompare(a.session_id));
+      // Ordenamos para que las más recientes salgan primero
+        finalSessions.sort((a, b) => {
+        const dateA = new Date(a.timestamp || 0).getTime();
+        const dateB = new Date(b.timestamp || 0).getTime();
+        return dateB - dateA; 
+      });
 
       // Actualizamos el estado con el arreglo final
       setSessions([...finalSessions]);

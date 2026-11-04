@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -15,6 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+// 1. IMPORT CORREGIDO: Usamos la librería de SafeArea para Android
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSessions } from '../hooks/useSessions';
 
 type UserRole = 'Admin Plataforma' | 'Admin Institución' | 'Especialista' | 'Auditor';
@@ -131,7 +132,7 @@ export default function DashboardScreen() {
         style={StyleSheet.absoluteFillObject}
       />
 
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         {/* Encabezado Superior */}
@@ -243,11 +244,24 @@ export default function DashboardScreen() {
                         <Text style={styles.scoreText}>Puntaje Cognitivo: {item.metricas.score} pts</Text>
                       )}
 
+                      {/* NUEVO: MOSTRAR RESUMEN DE LA IA */}
+                      {item.metricas?.detalle_escenas?.[0]?.resumen_ia && (
+                        <View style={styles.aiSummaryBox}>
+                          <Text style={styles.aiSummaryText}>
+                            🤖 {item.metricas.detalle_escenas[0].resumen_ia}
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={styles.sessionFooter}>
                         <Text style={styles.sessionStatus}>Participante: {item.participante_id}</Text>
-                        {Boolean(item.tenant_id) && (
-                          <Text style={styles.sessionDate}>Tenant: {item.tenant_id}</Text>
-                        )}
+                        
+                        {/* NUEVO: FECHA Y HORA */}
+                        <Text style={styles.sessionDate}>
+                          📅 {new Date(item.timestamp || Date.now()).toLocaleString('es-CL', { 
+                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+                          })}
+                        </Text>
                       </View>
                     </View>
                   );
@@ -256,19 +270,32 @@ export default function DashboardScreen() {
             </View>
           )}
 
-          {/* PESTAÑA DE COSTOS */}
+          {/* PESTAÑA DE COSTOS DINÁMICOS */}
           {activeTab === 'Costos y Nube' && (
             <View style={styles.tabContent}>
               <Text style={styles.cardHeaderTitle}>Estructura de Costos SaaS</Text>
+              
               <View style={styles.costCard}>
-                <Text style={styles.costTitle}>Infraestructura</Text>
-                <Text style={styles.costAmount}>100% Serverless</Text>
-                <Text style={styles.costDescription}>Costo variable por uso (Lambda, DynamoDB, SQS).</Text>
+                <Text style={styles.costTitle}>Costo Estimado por Sesión</Text>
+                <Text style={styles.costAmount}>$0.000011 USD</Text>
+                <Text style={styles.costDescription}>Basado en el pricing de AWS (Lambda + SQS + DynamoDB + S3 + API Gateway).</Text>
               </View>
+
               <View style={styles.costCard}>
-                <Text style={styles.costTitle}>Almacenamiento en Frío</Text>
-                <Text style={styles.costAmount}>Amazon S3</Text>
-                <Text style={styles.costDescription}>Particionado por clínica para futuros análisis.</Text>
+                <Text style={styles.costTitle}>Costo Acumulado de Infraestructura</Text>
+                <Text style={styles.costAmount}>
+                  ${(totalSesiones * 0.000011).toFixed(6)} USD
+                </Text>
+                <Text style={styles.costDescription}>
+                  Calculado sobre las {totalSesiones} sesiones registradas en tu base de datos.
+                </Text>
+              </View>
+
+              <View style={styles.infoBox}>
+                <Text style={styles.infoTitle}>Margen y Escalabilidad</Text>
+                <Text style={styles.infoDetail}>• Costo Meta por Sesión: Máximo $0.02 USD</Text>
+                <Text style={styles.infoDetail}>• Estado actual: 99.9% por debajo del límite</Text>
+                <Text style={styles.infoDetail}>• Impacto: El costo variable es insignificante frente a la suscripción mensual del cliente.</Text>
               </View>
             </View>
           )}
@@ -357,6 +384,9 @@ const styles = StyleSheet.create({
   
   scoreText: { color: '#4ADE80', fontSize: 12, fontWeight: '600', marginTop: 4 },
   
+  aiSummaryBox: { backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: 10, borderRadius: 8, marginTop: 10, borderLeftWidth: 3, borderLeftColor: '#38BDF8' },
+  aiSummaryText: { fontSize: 12, color: '#E0F2FE', fontStyle: 'italic', lineHeight: 16 },
+
   header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#F8FAFC' },
   headerSubtitle: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
@@ -402,7 +432,7 @@ const styles = StyleSheet.create({
   costAmount: { fontSize: 22, fontWeight: 'bold', color: '#22C55E', marginVertical: 4 },
   costDescription: { fontSize: 12, color: '#64748B' },
   
-  bottomNav: { flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.8)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingVertical: 8, paddingBottom: 12 },
+  bottomNav: { flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.8)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingVertical: 8, paddingBottom: 16 },
   navItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   navLabel: { fontSize: 11, color: '#64748B', marginTop: 4, fontWeight: '500' },
   navLabelActive: { color: '#38BDF8', fontWeight: 'bold' },
