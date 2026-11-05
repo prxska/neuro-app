@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   RefreshControl,
   ScrollView,
@@ -12,11 +13,11 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 // 1. IMPORT CORREGIDO: Usamos la librería de SafeArea para Android
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSessions } from '../hooks/useSessions';
+import { API_BASE_URL, useSessions } from '../hooks/useSessions';
 
 type UserRole = 'Admin Plataforma' | 'Admin Institución' | 'Especialista' | 'Auditor';
 type TabType = 'Métricas' | 'Sesiones VR' | 'Costos y Nube';
@@ -71,6 +72,45 @@ export default function DashboardScreen() {
       await refetch();
     }
     setRefreshing(false);
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    Alert.alert(
+      "Eliminar Sesión",
+      "¿Seguro que quieres eliminar esta sesión de la base de datos?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const storedSession = await AsyncStorage.getItem('user_session');
+              if (!storedSession) return;
+              const { token } = JSON.parse(storedSession);
+
+              const response = await fetch(`${API_BASE_URL}/scenes?participantId=P001&tenantId=habaA&sessionId=${sessionId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+
+              if (response.ok) {
+                Alert.alert("Éxito", "Sesión eliminada correctamente");
+                onRefresh(); // Recarga la lista
+              } else {
+                Alert.alert("Error", "Error al eliminar en AWS");
+              }
+            } catch (error) {
+              console.error(error);
+              Alert.alert("Error", "Error de conexión");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const totalSesiones = sessions.length;
@@ -231,12 +271,30 @@ export default function DashboardScreen() {
                   const isHard = Boolean(item.scene_config_id?.includes('HARD'));
                   return (
                     <View key={item.session_id} style={styles.sessionCard}>
+                      
+                      {/* 1. Cabecera: ID a la izquierda, Basurero a la derecha */}
                       <View style={styles.sessionHeader}>
-                        <Text style={styles.sessionCode}>{item.session_id}</Text>
+                        <Text 
+                          style={styles.sessionCode} 
+                          numberOfLines={1} 
+                          ellipsizeMode="tail"
+                        >
+                          {item.session_id}
+                        </Text>
+                        
+                        <TouchableOpacity onPress={() => handleDeleteSession(item.session_id)}>
+                          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* 2. Badge verde debajo del ID */}
+                      <View style={{ flexDirection: 'row', marginBottom: 8, marginTop: 4 }}>
                         <Text style={[styles.badge, isHard ? styles.badgeHard : styles.badgeEasy]}>
                           {item.scene_config_id || 'Nivel Base'}
                         </Text>
                       </View>
+
+                      {/* 3. Resto de la información de la sesión */}
                       <Text style={styles.sessionSubText}>Experiencia: {item.experiencia || 'N/A'}</Text>
                       <Text style={styles.sessionSubText}>Duración: {item.duracion_seg ?? 0} segundos</Text>
 
@@ -244,7 +302,6 @@ export default function DashboardScreen() {
                         <Text style={styles.scoreText}>Puntaje Cognitivo: {item.metricas.score} pts</Text>
                       )}
 
-                      {/* NUEVO: MOSTRAR RESUMEN DE LA IA */}
                       {item.metricas?.detalle_escenas?.[0]?.resumen_ia && (
                         <View style={styles.aiSummaryBox}>
                           <Text style={styles.aiSummaryText}>
@@ -255,8 +312,6 @@ export default function DashboardScreen() {
 
                       <View style={styles.sessionFooter}>
                         <Text style={styles.sessionStatus}>Participante: {item.participante_id}</Text>
-                        
-                        {/* NUEVO: FECHA Y HORA */}
                         <Text style={styles.sessionDate}>
                           📅 {new Date(item.timestamp || Date.now()).toLocaleString('es-CL', { 
                             day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 

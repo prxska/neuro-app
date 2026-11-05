@@ -11,7 +11,8 @@ export interface SessionData {
   metricas: any;
 }
 
-const API_BASE_URL = 'https://4gesdz7435.execute-api.us-east-1.amazonaws.com/v1';
+export const API_BASE_URL = 'https://4gesdz7435.execute-api.us-east-1.amazonaws.com/v1';
+
 
 export function useSessions(participanteId: string) {
   const [sessions, setSessions] = useState<SessionData[]>([]);
