@@ -2,6 +2,8 @@
 
 Aplicación móvil y web desarrollada en **React Native (Expo)** para especialistas clínicos. Permite monitorear las sesiones de evaluación cognitiva realizadas por pacientes en visores de realidad virtual (Meta Quest 3).
 
+
+
 ## Características Principales
 
 *   **Autenticación Segura:** Inicio de sesión integrado con **AWS Cognito** (flujo `USER_PASSWORD_AUTH`), utilizando tokens JWT para proteger las peticiones a la API.
@@ -25,6 +27,7 @@ Asegúrate de tener instalado:
 *   Node.js (v18 o superior)
 *   npm o yarn
 *   Expo Go en tu dispositivo móvil (para pruebas) o un emulador.
+*   Instalación opcional del APK (recomendado) https://expo.dev/accounts/prxska/projects/neuroflex-dashboard/builds/6bced82f-d727-4439-bbdb-58e7d7a40abc
 
 ##  Cómo ejecutar el proyecto
 
