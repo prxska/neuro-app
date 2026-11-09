@@ -34,7 +34,6 @@ Asegúrate de tener instalado:
     cd neuroflex-dashboard
     npx expo start -c --tunnel
 
-   ```
 
 
     
