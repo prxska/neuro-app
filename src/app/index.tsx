@@ -160,15 +160,14 @@ export default function DashboardScreen() {
   return (
     <View style={styles.mainContainer}>
       <LinearGradient
-        colors={['#0F172A', '#1E1B4B', '#020617']} 
+        colors={['#0F172A', '#1E1B4B', '#020617']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
+<StatusBar barStyle="light-content" />
         {/* Encabezado Superior */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
@@ -509,7 +508,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // --- BURBUJA IA: estilo de popover, no de tarjeta ---
+  // --- BURBUJA IA: estilo de popoveer
   inlineBubbleContainer: {
     position: 'absolute',
     top: 42,
