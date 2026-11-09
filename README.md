@@ -1,56 +1,40 @@
-# Welcome to your Expo app 👋
+# NeuroFlex VR - Dashboard Institucional 📱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil y web desarrollada en **React Native (Expo)** para especialistas clínicos. Permite monitorear las sesiones de evaluación cognitiva realizadas por pacientes en visores de realidad virtual (Meta Quest 3).
 
-## Get started
+## Características Principales
 
-1. Install dependencies
+*   **Autenticación Segura:** Inicio de sesión integrado con **AWS Cognito** (flujo `USER_PASSWORD_AUTH`), utilizando tokens JWT para proteger las peticiones a la API.
+*   **Monitoreo en Tiempo Real:** Consumo de datos estructurados desde **AWS DynamoDB** a través de una API Gateway protegida.
+*   **Visualización de Métricas:** Dashboard con tarjetas que muestran el puntaje cognitivo, la duración de la sesión y el nivel de dificultad.
+*   **Análisis Clínico con IA:** Botón interactivo que despliega una burbuja con el resumen clínico generado por un modelo de lenguaje (Qwen) procesado en Google Colab.
+*   **Gestión de Sesiones:** Capacidad de eliminar registros de evaluaciones directamente desde la interfaz (con confirmación nativa).
+*   **Diseño UI/UX:** Interfaz en modo oscuro con efectos de "Aurora Boreal" animados de forma nativa.
 
-   ```bash
-   npm install
+## Tecnologías Utilizadas
+
+*   **Frontend:** React Native, Expo, TypeScript.
+*   **Navegación:** Expo Router.
+*   **Estilos:** React Native StyleSheet y Expo Linear Gradients.
+*   **Backend en la Nube:** AWS (API Gateway, Lambda, Cognito, DynamoDB, S3, SQS).
+*   **Procesamiento IA:** Python, Google Colab (GPU).
+
+## Requisitos Previos
+
+Asegúrate de tener instalado:
+*   Node.js (v18 o superior)
+*   npm o yarn
+*   Expo Go en tu dispositivo móvil (para pruebas) o un emulador.
+
+##  Cómo ejecutar el proyecto
+
+1.  Clona este repositorio e ingresa a la carpeta:
+    ```bash
+    git clone https://github.com/prxska/neuro-app.git
+    cd neuroflex-dashboard
+    npx expo start -c --tunnel
+
    ```
 
-2. Start the app
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+    
