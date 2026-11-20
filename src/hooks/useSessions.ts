@@ -7,12 +7,11 @@ export interface SessionData {
   experiencia: string;
   scene_config_id: string;
   duracion_seg: number;
-  timestamp?: string; // <--- NUEVO CAMPO
+  timestamp?: string;
   metricas: any;
 }
 
-export const API_BASE_URL = 'https://4gesdz7435.execute-api.us-east-1.amazonaws.com/v1';
-
+export const API_BASE_URL = 'https://ucgkiesz19.execute-api.us-east-1.amazonaws.com/v1';
 
 export function useSessions(participanteId: string) {
   const [sessions, setSessions] = useState<SessionData[]>([]);
@@ -30,7 +29,10 @@ export function useSessions(participanteId: string) {
 
       const { token } = JSON.parse(storedSession);
       
-      const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participanteId}&tenantId=habaA`, {
+      const url = `${API_BASE_URL}/scenes?participantId=${participanteId}&tenantId=habA`;
+      console.log("Consultando URL:", url);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -44,21 +46,22 @@ export function useSessions(participanteId: string) {
 
       const data = await response.json();
       const rounds = data.items || [];
+      console.log("Datos recibidos de AWS:", rounds); // Esto te ayudará a ver qué manda AWS
 
-      // Agrupamos las rondas por sessionId
       const sessionsMap: Record<string, SessionData> = {};
 
       rounds.forEach((round: any) => {
-        const sId = round.sessionId;
+        // 🔥 EL FIX ESTÁ AQUÍ: Buscamos el ID en distintas variantes por si AWS lo cambia
+        const sId = round.sessionId || round.session_id || round.tenantParticipantKey || 'sesion-desconocida';
         
         if (!sessionsMap[sId]) {
           sessionsMap[sId] = {
             session_id: sId,
-            participante_id: round.participantId,
+            participante_id: round.participantId || round.participant_id || participanteId,
             experiencia: 'Unity VR (Scenes v1)',
             scene_config_id: 'Evaluación Multiescena',
             duracion_seg: 0,
-            timestamp: round.timestamp || new Date().toISOString(), // <--- GUARDAMOS LA FECHA
+            timestamp: round.timestamp || round.updated_at || new Date().toISOString(),
             metricas: { score: 0, detalle_escenas: [] }
           };
         }
@@ -66,18 +69,20 @@ export function useSessions(participanteId: string) {
         const m = round.metrics || {};
         
         sessionsMap[sId].metricas.detalle_escenas.push({
-          escena: round.scenarioId,
-          estado: round.status,
-          resumen_ia: round.resumen_ia, // <--- GUARDAMOS EL RESUMEN DE LA IA
+          escena: round.scenarioId || round.sceneId || 'Escena',
+          estado: round.status || 'completado',
+          resumen_ia: round.resumen_ia,
           ...m
         });
         
-        if (m.activeTimeSeconds) {
+        // Si viene activeTimeMs (en milisegundos), lo pasamos a segundos
+        if (m.activeTimeMs) {
+          sessionsMap[sId].duracion_seg += (m.activeTimeMs / 1000);
+        } else if (m.activeTimeSeconds) {
           sessionsMap[sId].duracion_seg += m.activeTimeSeconds;
         }
       });
 
-      // Calculamos el score y convertimos el mapa a un arreglo
       const finalSessions = Object.keys(sessionsMap).map(key => {
         const session = sessionsMap[key];
         const escenas = session.metricas.detalle_escenas;
@@ -85,14 +90,10 @@ export function useSessions(participanteId: string) {
         let validScenes = 0;
         
         escenas.forEach((e: any) => {
-          if (e.escena === 'memory' && e.matchingAccuracyPercent != null) {
-             totalScore += e.matchingAccuracyPercent;
-             validScenes++;
-          } else if (e.escena === 'pigeons' && e.responseCorrect != null) {
-             totalScore += e.responseCorrect ? 100 : 0;
-             validScenes++;
-          } else if (e.escena === 'puzzle' && e.incorrectMoves != null) {
-             totalScore += e.incorrectMoves <= 3 ? 100 : 50;
+          // Como migramos datos de Firebase, usamos los campos de ahí
+          if (e.correctPairAttempts != null && e.totalPieces != null) {
+             const scoreRonda = e.totalPieces > 0 ? (e.correctPairAttempts / e.totalPieces) * 100 : 0;
+             totalScore += scoreRonda;
              validScenes++;
           }
         });
@@ -102,14 +103,12 @@ export function useSessions(participanteId: string) {
         return session;
       });
 
-      // Ordenamos para que las más recientes salgan primero
-        finalSessions.sort((a, b) => {
+      finalSessions.sort((a, b) => {
         const dateA = new Date(a.timestamp || 0).getTime();
         const dateB = new Date(b.timestamp || 0).getTime();
         return dateB - dateA; 
       });
 
-      // Actualizamos el estado con el arreglo final
       setSessions([...finalSessions]);
       
     } catch (err: any) {

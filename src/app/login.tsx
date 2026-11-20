@@ -1,4 +1,3 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -25,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // ==========================================
 
 const COGNITO_REGION = 'us-east-1';
-const COGNITO_CLIENT_ID = '6m7qlsodcm83ddcb3jcnp0hql6';
+const COGNITO_CLIENT_ID = '7tu95d17shim5cv54ken3apbco';
 
 // ==========================================
 // FONDO AURORA - OPTIMIZADO PARA ANDROID
@@ -160,8 +159,9 @@ style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
 // ==========================================
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('especialista@haba.test');
-  const [password, setPassword] = useState('');
+  // 🔥 AQUI ESTAN LAS CREDENCIALES POR DEFECTO CAMBIADAS
+  const [email, setEmail] = useState('equipo.unity@neuroflex.test');
+  const [password, setPassword] = useState('Neuroflex2024!');
   const [loading, setLoading] = useState(false);
 
   // ========================================
@@ -211,7 +211,8 @@ export default function LoginScreen() {
       );
 
       const data = await response.json();
-
+      console.log("RESPUESTA EXACTA DE COGNITO:", JSON.stringify(data));
+      
       if (!response.ok) {
         console.error('Error Cognito:', data);
 
@@ -226,6 +227,7 @@ export default function LoginScreen() {
         return;
       }
 
+ 
       const accessToken =
         data.AuthenticationResult?.AccessToken;
 
@@ -319,7 +321,8 @@ export default function LoginScreen() {
 
             <TextInput
               style={styles.input}
-              placeholder="especialista@haba.test"
+              // 🔥 PLACEHOLDER ACTUALIZADO
+              placeholder="equipo.unity@neuroflex.test"
               placeholderTextColor="#64748B"
               value={email}
               onChangeText={setEmail}

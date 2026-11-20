@@ -36,8 +36,7 @@ export default function DashboardScreen() {
   const [userEmail, setUserEmail] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const { sessions, loading: sessionsLoading, error: sessionsError, refetch } = useSessions('P001');
-
+const { sessions, loading: sessionsLoading, error: sessionsError, refetch } = useSessions('p-375e5705f6924bb698be36037ca249d6');
   // Estado para manejar qué tarjeta tiene la burbuja abierta
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const bubbleAnim = useRef(new Animated.Value(0)).current;
@@ -90,7 +89,7 @@ export default function DashboardScreen() {
               if (!storedSession) return;
               const { token } = JSON.parse(storedSession);
 
-              const response = await fetch(`${API_BASE_URL}/scenes?participantId=P001&tenantId=habaA&sessionId=${sessionId}`, {
+const response = await fetch(`${API_BASE_URL}/scenes?participantId=${item.participante_id}&tenantId=habA&sessionId=${sessionId}`,  {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
               });
@@ -257,16 +256,16 @@ export default function DashboardScreen() {
                   <Text style={styles.emptySubtitle}>Inyecta una sesión para validar.</Text>
                 </View>
               ) : (
-                sessions.map((item: any) => {
+                sessions.map((item: any, index: number) => {
                   const isHard = Boolean(item.scene_config_id?.includes('HARD'));
                   const hasAI = item.metricas?.detalle_escenas?.[0]?.resumen_ia;
                   const isExpanded = expandedSession === item.session_id;
                   
                   return (
                     <View
-                      key={item.session_id}
-                      style={[styles.sessionCard, isExpanded && styles.sessionCardExpanded]}
-                    >
+  key={item.session_id || `session-${index}`}
+  style={[styles.sessionCard, isExpanded && styles.sessionCardExpanded]}
+>
                       
                       {/* Cabecera: ID, Botón IA, Basurero */}
                       <View style={styles.sessionHeader}>
