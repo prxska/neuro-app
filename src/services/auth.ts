@@ -7,7 +7,7 @@ export async function loginCognito(username: string, password: string): Promise<
     },
     body: JSON.stringify({
       AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: '1eto1qkukfh681a7v9bic56mka',
+      ClientId: '7tu95d17shim5cv54ken3apbco',
       AuthParameters: {
         USERNAME: username,
         PASSWORD: password,

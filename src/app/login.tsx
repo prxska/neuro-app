@@ -9,6 +9,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -41,13 +42,13 @@ const AuroraBackground = () => {
           toValue: 1,
           duration: 4500,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(opacity1, {
           toValue: 0.35,
           duration: 4500,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     );
@@ -58,13 +59,13 @@ const AuroraBackground = () => {
           toValue: 0.85,
           duration: 5500,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(opacity2, {
           toValue: 0.15,
           duration: 5500,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     );

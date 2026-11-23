@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -89,7 +90,14 @@ const { sessions, loading: sessionsLoading, error: sessionsError, refetch } = us
               if (!storedSession) return;
               const { token } = JSON.parse(storedSession);
 
-const response = await fetch(`${API_BASE_URL}/scenes?participantId=${item.participante_id}&tenantId=habA&sessionId=${sessionId}`,  {
+              const targetSession = sessions.find((s) => s.session_id === sessionId);
+              const participanteId = targetSession?.participante_id;
+              if (!participanteId) {
+                Alert.alert("Error", "No se encontró el participante de la sesión");
+                return;
+              }
+
+const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participanteId}&tenantId=habA&sessionId=${sessionId}`,  {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
               });
@@ -117,7 +125,7 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${item.partic
         toValue: 0,
         duration: 180,
         easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start(({ finished }) => {
         if (finished) setExpandedSession(null);
       });
@@ -131,7 +139,7 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${item.partic
       toValue: 1,
       duration: 420,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   };
 
@@ -267,18 +275,29 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${item.partic
   style={[styles.sessionCard, isExpanded && styles.sessionCardExpanded]}
 >
                       
-                      {/* Cabecera: ID, Botón IA, Basurero */}
+                      {/* Cabecera: ID, Tag, Botón IA, Basurero */}
                       <View style={styles.sessionHeader}>
-                        <Text 
-                          style={styles.sessionCode} 
-                          numberOfLines={1} 
-                          ellipsizeMode="tail"
-                        >
-                          {item.session_id}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                          <Text 
+                            style={[styles.sessionCode, { flex: 0, marginRight: 8 }]} 
+                            numberOfLines={1} 
+                            ellipsizeMode="tail"
+                          >
+                            {item.session_id}
+                          </Text>
+                          
+                          {/* ETIQUETA DEL TAG */}
+                          {item.tag && (
+                            <View style={{ backgroundColor: 'rgba(56, 189, 248, 0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                              <Text style={{ color: '#38BDF8', fontSize: 10, fontWeight: 'bold' }}>
+                                {item.tag}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                         
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {hasAI && (
+                          {item.metricas?.detalle_escenas?.[0]?.resumen_ia && (
                             <TouchableOpacity 
                               style={styles.aiCardButton} 
                               onPress={() => toggleAiBubble(item.session_id)}

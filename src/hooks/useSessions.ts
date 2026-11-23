@@ -8,6 +8,7 @@ export interface SessionData {
   scene_config_id: string;
   duracion_seg: number;
   timestamp?: string;
+  tag?: string; // <-- NUEVO
   metricas: any;
 }
 
@@ -29,9 +30,8 @@ export function useSessions(participanteId: string) {
 
       const { token } = JSON.parse(storedSession);
       
+      // Consultamos a AWS
       const url = `${API_BASE_URL}/scenes?participantId=${participanteId}&tenantId=habA`;
-      console.log("Consultando URL:", url);
-
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -46,43 +46,43 @@ export function useSessions(participanteId: string) {
 
       const data = await response.json();
       const rounds = data.items || [];
-      console.log("Datos recibidos de AWS:", rounds); // Esto te ayudará a ver qué manda AWS
 
       const sessionsMap: Record<string, SessionData> = {};
 
       rounds.forEach((round: any) => {
-        // 🔥 EL FIX ESTÁ AQUÍ: Buscamos el ID en distintas variantes por si AWS lo cambia
-        const sId = round.sessionId || round.session_id || round.tenantParticipantKey || 'sesion-desconocida';
+        // 🔥 Adaptado a tu DynamoDB real:
+        const sId = round.sessionId || 'sesion-desconocida';
+        
+        // Extraemos el ID del paciente de la llave (ej: habA#p-375e... -> p-375e...)
+        const pId = round.tenantParticipantKey ? round.tenantParticipantKey.split('#')[1] : participanteId;
         
         if (!sessionsMap[sId]) {
           sessionsMap[sId] = {
             session_id: sId,
-            participante_id: round.participantId || round.participant_id || participanteId,
-            experiencia: 'Unity VR (Scenes v1)',
-            scene_config_id: 'Evaluación Multiescena',
+            participante_id: pId,
+            experiencia: round.sceneId || 'Unity VR',
+            scene_config_id: round.difficulty ? `Nivel ${round.difficulty}` : 'Evaluación',
             duracion_seg: 0,
-            timestamp: round.timestamp || round.updated_at || new Date().toISOString(),
+            timestamp: round.migrationDate || new Date().toISOString(),
+            tag: round.tag || 'Sin etiqueta', // 🔥 Leemos el TAG
             metricas: { score: 0, detalle_escenas: [] }
           };
         }
         
-        const m = round.metrics || {};
-        
+        // 🔥 Los datos están en la raíz de 'round', no dentro de 'round.metrics'
         sessionsMap[sId].metricas.detalle_escenas.push({
-          escena: round.scenarioId || round.sceneId || 'Escena',
+          escena: round.sceneId,
           estado: round.status || 'completado',
-          resumen_ia: round.resumen_ia,
-          ...m
+          ...round // Guardamos todo por si acaso
         });
         
-        // Si viene activeTimeMs (en milisegundos), lo pasamos a segundos
-        if (m.activeTimeMs) {
-          sessionsMap[sId].duracion_seg += (m.activeTimeMs / 1000);
-        } else if (m.activeTimeSeconds) {
-          sessionsMap[sId].duracion_seg += m.activeTimeSeconds;
+        // Sumamos el tiempo activo (viene en milisegundos)
+        if (round.activeTimeMs) {
+          sessionsMap[sId].duracion_seg += (round.activeTimeMs / 1000);
         }
       });
 
+      // Calculamos el score general
       const finalSessions = Object.keys(sessionsMap).map(key => {
         const session = sessionsMap[key];
         const escenas = session.metricas.detalle_escenas;
@@ -90,10 +90,9 @@ export function useSessions(participanteId: string) {
         let validScenes = 0;
         
         escenas.forEach((e: any) => {
-          // Como migramos datos de Firebase, usamos los campos de ahí
-          if (e.correctPairAttempts != null && e.totalPieces != null) {
-             const scoreRonda = e.totalPieces > 0 ? (e.correctPairAttempts / e.totalPieces) * 100 : 0;
-             totalScore += scoreRonda;
+          // Calculamos el score basado en aciertos vs piezas totales
+          if (e.correctPairAttempts != null && e.totalPieces != null && e.totalPieces > 0) {
+             totalScore += (e.correctPairAttempts / e.totalPieces) * 100;
              validScenes++;
           }
         });
@@ -103,6 +102,7 @@ export function useSessions(participanteId: string) {
         return session;
       });
 
+      // Ordenamos por fecha
       finalSessions.sort((a, b) => {
         const dateA = new Date(a.timestamp || 0).getTime();
         const dateB = new Date(b.timestamp || 0).getTime();
