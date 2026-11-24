@@ -30,6 +30,43 @@ interface TabItem {
   iconInactive: keyof typeof Ionicons.glyphMap;
 }
 
+const parseSceneSummaries = (raw: unknown): any[] => {
+  if (Array.isArray(raw)) return raw;
+
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const getSummaryText = (escena: any) =>
+  typeof escena?.resumen_ia === 'string' ? escena.resumen_ia.trim() : '';
+
+const isSummaryReady = (summary: string) => {
+  if (!summary) return false;
+
+  const normalized = summary.toLowerCase();
+  if (normalized.includes('pendiente de procesamiento')) return false;
+  if (normalized.startsWith('error al generar')) return false;
+
+  return true;
+};
+
+const getSummaryDisplayText = (summary: string) => {
+  if (!summary) return 'Sin resumen generado.';
+  if (summary.toLowerCase().includes('pendiente de procesamiento')) {
+    return 'Análisis pendiente de procesamiento por IA.';
+  }
+
+  return summary;
+};
+
 export default function DashboardScreen() {
   const [activeRole, setActiveRole] = useState<UserRole>('Admin Plataforma');
   const [activeTab, setActiveTab] = useState<TabType>('Métricas');
@@ -133,6 +170,7 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participant
     }
 
     // Reinicia la animación al cambiar de sesión.
+    bubbleAnim.stopAnimation();
     bubbleAnim.setValue(0);
     setExpandedSession(sessionId);
     Animated.timing(bubbleAnim, {
@@ -266,14 +304,14 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participant
               ) : (
                 sessions.map((item: any, index: number) => {
                   const isHard = Boolean(item.scene_config_id?.includes('HARD'));
-                  const hasAI = item.metricas?.detalle_escenas?.[0]?.resumen_ia;
+                  const scenes = parseSceneSummaries(item.metricas?.detalle_escenas);
                   const isExpanded = expandedSession === item.session_id;
                   
                   return (
                     <View
-  key={item.session_id || `session-${index}`}
-  style={[styles.sessionCard, isExpanded && styles.sessionCardExpanded]}
->
+                      key={item.session_id || `session-${index}`}
+                      style={[styles.sessionCard, isExpanded && styles.sessionCardExpanded]}
+                    >
                       
                       {/* Cabecera: ID, Tag, Botón IA, Basurero */}
                       <View style={styles.sessionHeader}>
@@ -297,15 +335,16 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participant
                         </View>
                         
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {item.metricas?.detalle_escenas?.[0]?.resumen_ia && (
-                            <TouchableOpacity 
-                              style={styles.aiCardButton} 
-                              onPress={() => toggleAiBubble(item.session_id)}
-                            >
-                              <Ionicons name="sparkles" size={14} color="#38BDF8" />
-                              <Text style={styles.aiCardButtonText}>IA</Text>
-                            </TouchableOpacity>
-                          )}
+                          <TouchableOpacity
+                            style={styles.aiCardButton}
+                            onPress={() => toggleAiBubble(item.session_id)}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Ver análisis IA de la sesión ${item.session_id}`}
+                          >
+                            <Ionicons name="sparkles" size={14} color="#38BDF8" />
+                            <Text style={styles.aiCardButtonText}>IA</Text>
+                          </TouchableOpacity>
                           <TouchableOpacity onPress={() => handleDeleteSession(item.session_id)}>
                             <Ionicons name="trash-outline" size={20} color="#EF4444" />
                           </TouchableOpacity>
@@ -327,7 +366,7 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participant
                       )}
 
                       {/* BURBUJA IA SOBREPUESTA: flota sobre la sesión sin modificar su altura */}
-                      {hasAI && isExpanded && (
+                      {isExpanded && (
                         <Animated.View
                           style={[
                             styles.inlineBubbleContainer,
@@ -353,17 +392,40 @@ const response = await fetch(`${API_BASE_URL}/scenes?participantId=${participant
                               </TouchableOpacity>
                             </View>
 
-                            {item.metricas.detalle_escenas.map((escena: any, idx: number) => (
-                              <View key={idx} style={styles.bubbleSceneCard}>
-                                <Text style={styles.bubbleSceneTitle}>
-                                  {escena.escena === 'puzzle' ? '🧩 Puzzle' : 
-                                   escena.escena === 'memory' ? '🃏 Memoria' : '🕊️ Palomas'}
-                                </Text>
-                                <Text style={styles.bubbleSceneText}>
-                                  {escena.resumen_ia || 'Sin resumen generado.'}
+                            {scenes.length > 0 ? (
+                              scenes.map((escena: any, idx: number) => {
+                                const summary = getSummaryText(escena);
+                                const isReady = isSummaryReady(summary);
+
+                                return (
+                                  <View
+                                    key={`${item.session_id}-escena-${idx}`}
+                                    style={styles.bubbleSceneCard}
+                                  >
+                                    <Text style={styles.bubbleSceneTitle}>
+                                      {escena.escena === 'puzzle' ? '🧩 Puzzle' :
+                                       escena.escena === 'memory' ? '🃏 Memoria' : '🕊️ Palomas'}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.bubbleSceneText,
+                                        !isReady && styles.bubblePendingText,
+                                      ]}
+                                    >
+                                      {getSummaryDisplayText(summary)}
+                                    </Text>
+                                  </View>
+                                );
+                              })
+                            ) : (
+                              <View style={styles.bubbleSceneCard}>
+                                <Text style={styles.bubbleSceneTitle}>Sin escenas registradas</Text>
+                                <Text style={[styles.bubbleSceneText, styles.bubblePendingText]}>
+                                  Aún no hay datos de escenas para esta sesión. El análisis
+                                  aparecerá cuando estén disponibles.
                                 </Text>
                               </View>
-                            ))}
+                            )}
 
                             <Text style={styles.bubbleDisclaimer}>
                               * Análisis descriptivo. No constituye diagnóstico médico.
@@ -591,6 +653,10 @@ const styles = StyleSheet.create({
     color: '#E2E8F0',
     fontSize: 12,
     lineHeight: 18,
+  },
+  bubblePendingText: {
+    color: '#94A3B8',
+    fontStyle: 'italic',
   },
   bubbleDisclaimer: {
     color: '#64748B',
